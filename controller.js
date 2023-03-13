@@ -2,6 +2,8 @@
 
 const db = require('./db');
 
+
+// Total KWH of the last One Hour-------------------------------------------------------------------------
 function getLastHourDataKWH(req, res) {
   const query = "SELECT SUM(kwh) as total_kwh FROM SalasarDB.main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR)";
   db.query(query, (error, results, fields) => {
@@ -11,6 +13,8 @@ function getLastHourDataKWH(req, res) {
   });
 }
 
+
+// Total KWH of the last One Month-------------------------------------------------------------------------
 function getLastMonthDataKWH(req, res) {
   const query = "SELECT SUM(kwh) as total_kwh FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
   db.query(query, (error, results, fields) => {
@@ -20,6 +24,8 @@ function getLastMonthDataKWH(req, res) {
   });
 }
 
+
+// Total KVAH of the last One Hour-------------------------------------------------------------------------
 function getLastHourDataKVAH(req, res) {
   const query = "SELECT SUM(kvah) as total_kvah FROM SalasarDB.main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR)";
   db.query(query, (error, results, fields) => {
@@ -29,6 +35,8 @@ function getLastHourDataKVAH(req, res) {
   });
 }
 
+
+// Total KVAH of the last One Month-------------------------------------------------------------------------
 function getLastMonthDataKVAH(req, res) {
   const query = "SELECT SUM(kvah) as total_kvah FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
   db.query(query, (error, results, fields) => {
@@ -38,6 +46,8 @@ function getLastMonthDataKVAH(req, res) {
   });
 }
 
+
+// Average PF of the last One Hour-------------------------------------------------------------------------
 function getLastHourDataPF(req, res) {
   const query = "SELECT AVG(pf) as avg_pf FROM SalasarDB.main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR)";
   db.query(query, (error, results, fields) => {
@@ -47,6 +57,8 @@ function getLastHourDataPF(req, res) {
   });
 }
 
+
+// Average PF of the last One Month-------------------------------------------------------------------------
 function getLastMonthDataPF(req, res) {
   const query = "SELECT AVG(pf) as avg_pf FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
   db.query(query, (error, results, fields) => {
@@ -56,6 +68,8 @@ function getLastMonthDataPF(req, res) {
   });
 }
 
+
+// Average Voltage of the last One Hour-------------------------------------------------------------------------
 function getLastHourDataVoltage(req, res) {
   const query = "SELECT AVG(voltage_N) as avg_voltage FROM SalasarDB.main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR)";
   db.query(query, (error, results, fields) => {
@@ -65,6 +79,8 @@ function getLastHourDataVoltage(req, res) {
   });
 }
 
+
+// Average Voltage of the last One Month-------------------------------------------------------------------------
 function getLastMonthDataVoltage(req, res) {
   const query = "SELECT AVG(voltage_N) as avg_voltage FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
   db.query(query, (error, results, fields) => {
@@ -74,7 +90,28 @@ function getLastMonthDataVoltage(req, res) {
   });
 }
 
+// Total Data Point of last One hour KWH-------------------------------------------------------------------------
+function getLastHourDataPointKWH(req, res) {
+  const query = "SELECT SUM(kwh) as total_kwh, DATE_FORMAT(date_time, '%Y-%m-%d %H:%i') as time FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR) GROUP BY time ORDER BY time DESC LIMIT 60";
+  db.query(query, (error, results, fields) => {
+    if (error) throw error;
+    const totalHourPointKWH = results.reverse();
+    res.json({ totalHourPointKWH });
+  });
+}
+
+// Total Data Point of last One Month KWH-------------------------------------------------------------------------
+function getLastMonthDataPointKWH(req, res) {
+  const query = "SELECT DATE(date_time) as day, SUM(kwh) as total_kwh FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH) GROUP BY day ORDER BY day DESC LIMIT 31";
+  db.query(query, (error, results, fields) => {
+    if (error) throw error;
+    const monthlyDataPointKWH = results.reverse();
+    res.json({ monthlyDataPointKWH });
+  });
+}
+
 module.exports = { 
+  //Signle Values for total Cards
   getLastHourDataKWH, 
   getLastMonthDataKWH, 
   getLastHourDataKVAH, 
@@ -82,5 +119,9 @@ module.exports = {
   getLastHourDataPF,
   getLastMonthDataPF,
   getLastHourDataVoltage,
-  getLastMonthDataVoltage
+  getLastMonthDataVoltage,
+
+  //Multiple Values For Charts
+  getLastHourDataPointKWH,
+  getLastMonthDataPointKWH,
 };

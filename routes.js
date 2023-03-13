@@ -18,5 +18,8 @@ router.get('/Voltage-last-hour', controller.getLastHourDataVoltage);
 
 router.get('/Voltage-last-month', controller.getLastMonthDataVoltage);
 
+router.get('/KWH-last-hour-points', controller.getLastHourDataPointKWH);
+
+router.get('/KWH-last-month-points', controller.getLastMonthDataPointKWH);
 
 module.exports = router;
