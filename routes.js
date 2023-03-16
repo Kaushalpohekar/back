@@ -22,4 +22,26 @@ router.get('/KWH-last-hour-points', controller.getLastHourDataPointKWH);
 
 router.get('/KWH-last-month-points', controller.getLastMonthDataPointKWH);
 
+router.post('/signup', controller.signup);
+
+router.post('/login', controller.login);
+
+router.get('/data',controller.data);
+
+router.get('/data_daily',controller.data_daily);
+
+router.get('/data_hour',controller.data_hour);
+
+router.get('/data_week',controller.data_week);
+
+router.get('/data_month',controller.data_month);
+
+router.get('/data_min',controller.data_min);
+
+router.get('/data_year',controller.data_year);
+
+router.get('/users',controller.users);
+
+router.get('/energy-management-data',controller.allEnergyData);
+
 module.exports = router;
