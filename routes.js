@@ -44,4 +44,6 @@ router.get('/users',controller.users);
 
 router.get('/energy-management-data',controller.allEnergyData);
 
+router.post('/forgot-password',controller.forgotPassword);
+
 module.exports = router;

@@ -5,6 +5,7 @@ const db = require('./db');
 const bcrypt = require('bcrypt');
 const uuid = require('uuid');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 
 
@@ -117,7 +118,7 @@ function getLastMonthDataPointKWH(req, res) {
 }
 
 // Get all Data -------------------------------------------------------------------------
-function data(req, res){
+function data(req, res) {
   const sql = 'SELECT * FROM energy_data';
   db.query(sql, (error, results) => {
     if (error) {
@@ -127,7 +128,7 @@ function data(req, res){
   });
 }
 // Get all Data todays -------------------------------------------------------------------------
-function data_daily(req, res){
+function data_daily(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE DATE(timestamp) = CURDATE();';
   db.query(sql, (error, results) => {
     if (error) {
@@ -137,7 +138,7 @@ function data_daily(req, res){
   });
 }
 // Get Data of 1 hour -------------------------------------------------------------------------
-function data_hour(req, res){
+function data_hour(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR);';
   db.query(sql, (error, results) => {
     if (error) {
@@ -147,7 +148,7 @@ function data_hour(req, res){
   });
 }
 // Get Data of 1 week -------------------------------------------------------------------------
-function data_week(req, res){
+function data_week(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 WEEK)';
   db.query(sql, (error, results) => {
     if (error) {
@@ -157,7 +158,7 @@ function data_week(req, res){
   });
 }
 // Get Data of 1 month -------------------------------------------------------------------------
-function data_month(req, res){
+function data_month(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 MONTH)';
   db.query(sql, (error, results) => {
     if (error) {
@@ -167,7 +168,7 @@ function data_month(req, res){
   });
 }
 // Get Data of 1 min -------------------------------------------------------------------------
-function data_min(req, res){
+function data_min(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)';
   db.query(sql, (error, results) => {
     if (error) {
@@ -177,7 +178,7 @@ function data_min(req, res){
   });
 }
 // Get Data of 1 year -------------------------------------------------------------------------
-function data_year(req, res){
+function data_year(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 YEAR)';
   db.query(sql, (error, results) => {
     if (error) {
@@ -202,9 +203,9 @@ async function signup(req, res) {
   db.query(query, values, (err, result) => {
     if (err) {
       console.error(err);
-      res.status(500).send('Error occurred while inserting user data');
+      res.json({ success: 0, message: 'Not able to register ' });
     } else {
-      res.status(200).send('User signed up successfully');
+      res.json({ success: 1, message: 'User Signed Up successfully' });
     }
   });
 }
@@ -241,21 +242,132 @@ async function login(req, res) {
   }
 }
 //function to view all the users in the database -----------------------------------------------
-function users(req, res){
+function users(req, res) {
   const query = `SELECT * FROM Dash_user`;
   db.query(query, (err, results) => {
-      if (err) {
-          console.error(err);
-          res.status(500).send('Error occurred while retrieving users');
-      } else {
-          res.status(200).json(results);
-      }
+    if (err) {
+      console.error(err);
+      res.status(500).send('Error occurred while retrieving users');
+    } else {
+      res.status(200).json(results);
+    }
   });
 }
 
 
+// // Forgot Password Function
+// async function forgotPassword(req, res) {
+//   const { company_email } = req.body;
+
+//   try {
+//     // Retrieve user data from the database
+//     const query = 'SELECT * FROM Dash_user WHERE company_email = ?';
+//     db.query(query, company_email, async (err, result) => {
+//       if (err) {
+//         console.error(err);
+//         res.status(500).send('Error occurred while retrieving user data');
+//       } else {
+//         if (result.length === 0) {
+//           res.json({ success: 0, message: 'Invalid email address' });
+//         } else {
+//           const user = result[0];
+
+//           // Send the existing password to the user's email address using nodemailer
+//           const transporter = nodemailer.createTransport({
+//             service: 'gmail',
+//             auth: {
+//               user: 'raotanmay97@gmail.com',
+//               pass: 'hmgaqbvxmdkofdhn'
+//             }
+//           });
+//           const mailOptions = {
+//             from: 'raotanmay100@gmail.com',
+//             to: user.company_email,
+//             subject: 'Password Reminder for Your Dashboard Account',
+//             text: `Your password for your Dashboard account is: ${user.password}`
+//           };
+//           transporter.sendMail(mailOptions, (err, info) => {
+//             if (err) {
+//               console.error(err);
+//               res.status(500).send('Error occurred while sending email');
+//             } else {
+//               res.json({ success: 1, message: 'Password sent to your email address' });
+//             }
+//           });
+//         }
+//       }
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send('Error occurred while retrieving password');
+//   }
+// }
+async function forgotPassword(req, res) {
+  const { company_email } = req.body;
+
+  try {
+    // Retrieve user data from the database
+    const query = 'SELECT * FROM Dash_user WHERE company_email = ?';
+    db.query(query, company_email, async (err, result) => {
+      if (err) {
+        console.error(err);
+        res.status(500).send('Error occurred while retrieving user data');
+      } else {
+        if (result.length === 0) {
+          res.json({ success: 0, message: 'Invalid email address' });
+        } else {
+          const user = result[0];
+
+          // Generate a random password
+          const newPassword = Math.random().toString(36).slice(-8);
+
+          // Update the user's password in the database
+          const updateQuery = 'UPDATE Dash_user SET password = ? WHERE company_email = ?';
+          const saltRounds = 10; 
+          db.query(updateQuery, [bcrypt.hashSync(newPassword, saltRounds), company_email], async (err, result) => {
+            if (err) {
+              console.error(err);
+              res.status(500).send('Error occurred while updating password');
+            } else {
+              // Send the new password to the user's email address
+              const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                  user: 'raotanmay97@gmail.com',
+                  pass: 'hmgaqbvxmdkofdhn'
+                }
+              });
+              const mailOptions = {
+                from: 'raotanmay100@gmail.com',
+                to: user.company_email,
+                subject: 'Password Reset for Your Dashboard Account',
+                text: `Your new password for your Dashboard account is: ${newPassword}`
+              };
+              transporter.sendMail(mailOptions, (err, info) => {
+                if (err) {
+                  console.error(err);
+                  res.status(500).send('Error occurred while sending email');
+                } else {
+                  res.json({ success: 1, message: 'New password sent to your email address' });
+                }
+              });
+            }
+          });
+        }
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error occurred while resetting password');
+  }
+}
+
+
+
+
+
 // Function to get All energy data ------------------------------------------------
-function allEnergyData(req, res){
+function allEnergyData(req, res) {
   const deviceId = req.query.device_id;
   const timeInterval = req.query.time_interval.toLowerCase();
   const columns = req.query.columns;
@@ -335,5 +447,6 @@ module.exports = {
   data_week,
   data_year,
   users,
-  allEnergyData
+  allEnergyData,
+  forgotPassword
 };
