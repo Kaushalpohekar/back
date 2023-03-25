@@ -1,127 +1,110 @@
-// controller.js
-
 const db = require('./db');
 
-
-// Total KWH of the last One Hour-------------------------------------------------------------------------
-function getLastHourDataKWH(req, res) {
-  const query = "SELECT SUM(kwh) as total_kwh FROM SalasarDB.main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR)";
+function getThisHourData(req, res) {
+  const query = "SELECT voltage_N, PF, kvah, kwh FROM Device_data_hour where device_uid = 'SL01202302' ORDER BY hour DESC LIMIT 1";
   db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const totalHourKWH = results[0].total_kwh;
-    res.json({ totalHourKWH });
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error retrieving last hour data" });
+    } else {
+      const avgHourVoltage = results[0].voltage_N;
+      const avgHourPF = results[0].PF;
+      const totalHourKVAH = results[0].kvah;
+      const totalHourKWH = results[0].kwh;
+      res.json({ avgHourVoltage, avgHourPF, totalHourKVAH, totalHourKWH });
+    }
   });
 }
 
-
-// Total KWH of the last One Month-------------------------------------------------------------------------
-function getLastMonthDataKWH(req, res) {
-  const query = "SELECT SUM(kwh) as total_kwh FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
+function getThisMonthData(req, res) {
+  const query = "SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = 'SL01202302' ORDER BY month_start DESC LIMIT 1";
   db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const totalMonthKWH = results[0].total_kwh;
-    res.json({ totalMonthKWH });
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error retrieving last month data" });
+    } else {
+      const avgMonthVoltage = results[0].voltage_N;
+      const avgMonthPF = results[0].PF;
+      const totalMonthKVAH = results[0].kvah;
+      const totalMonthKWH = results[0].kwh;
+      res.json({ avgMonthVoltage, avgMonthPF, totalMonthKVAH, totalMonthKWH });
+    }
   });
 }
 
-
-// Total KVAH of the last One Hour-------------------------------------------------------------------------
-function getLastHourDataKVAH(req, res) {
-  const query = "SELECT SUM(kvah) as total_kvah FROM SalasarDB.main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR)";
+function getPrevMonthData(req, res) {
+  const query = "SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = 'SL01202302' ORDER BY month_start DESC LIMIT 2";
   db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const totalHourKVAH = results[0].total_kvah;
-    res.json({ totalHourKVAH });
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error retrieving previous Month data" });
+    } else {
+      const prevMonthVoltage = results[1].voltage_N;
+      const prevMonthPF = results[1].PF;
+      const totalPrevMonthKVAH = results[1].kvah;
+      const totalPrevMonthKWH = results[1].kwh;
+      res.json({ prevMonthVoltage, prevMonthPF, totalPrevMonthKVAH, totalPrevMonthKWH });
+    }
   });
 }
 
-
-// Total KVAH of the last One Month-------------------------------------------------------------------------
-function getLastMonthDataKVAH(req, res) {
-  const query = "SELECT SUM(kvah) as total_kvah FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
+function getUserDevices(req, res) {
+  const userId = req.params.userId;
+  const query = `SELECT * FROM Dash_device WHERE user_id = '${userId}'`;
   db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const totalMonthKVAH = results[0].total_kvah;
-    res.json({ totalMonthKVAH });
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error retrieving user devices" });
+    } else {
+      res.json(results);
+    }
   });
 }
 
-
-// Average PF of the last One Hour-------------------------------------------------------------------------
-function getLastHourDataPF(req, res) {
-  const query = "SELECT AVG(pf) as avg_pf FROM SalasarDB.main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR)";
-  db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const avgHourPF = results[0].avg_pf;
-    res.json({ avgHourPF });
+function addDevice(req, res) {
+  const device = req.body;
+  const queryCheck = `SELECT * FROM Dash_device WHERE device_uid = '${device.deviceId}'`;
+  db.query(queryCheck, (error, results, fields) => {
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error checking device availability" });
+    } else {
+      if (results.length > 0) {
+        res.status(400).json({ success: false, message: "Device already exists" });
+      } else {
+        const queryAdd = `INSERT INTO Dash_device (user_id, device_name, device_uid, company_name, location) VALUES ('${device.userId}', '${device.deviceName}', '${device.deviceId}', '${device.companyName}', '${device.location}')`;
+        db.query(queryAdd, (error, results, fields) => {
+          if (error) {
+            console.error(error);
+            res.status(500).json({ success: false, message: "Error adding device" });
+          } else {
+            res.json({ success: true, message: "Device successfully added" });
+          }
+        });
+      }
+    }
   });
 }
 
-
-// Average PF of the last One Month-------------------------------------------------------------------------
-function getLastMonthDataPF(req, res) {
-  const query = "SELECT AVG(pf) as avg_pf FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
+function deleteDevice(req, res) {
+  const deviceId = req.params.deviceId;
+  const query = `DELETE FROM Dash_device WHERE device_uid = '${deviceId}'`;
   db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const avgMonthPF = results[0].avg_pf;
-    res.json({ avgMonthPF });
-  });
-}
-
-
-// Average Voltage of the last One Hour-------------------------------------------------------------------------
-function getLastHourDataVoltage(req, res) {
-  const query = "SELECT AVG(voltage_N) as avg_voltage FROM SalasarDB.main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR)";
-  db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const avgHourVoltage = results[0].avg_voltage;
-    res.json({ avgHourVoltage });
-  });
-}
-
-
-// Average Voltage of the last One Month-------------------------------------------------------------------------
-function getLastMonthDataVoltage(req, res) {
-  const query = "SELECT AVG(voltage_N) as avg_voltage FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
-  db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const avgMonthVoltage = results[0].avg_voltage;
-    res.json({ avgMonthVoltage });
-  });
-}
-
-// Total Data Point of last One hour KWH-------------------------------------------------------------------------
-function getLastHourDataPointKWH(req, res) {
-  const query = "SELECT SUM(kwh) as total_kwh, DATE_FORMAT(date_time, '%Y-%m-%d %H:%i') as time FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR) GROUP BY time ORDER BY time DESC LIMIT 60";
-  db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const totalHourPointKWH = results.reverse();
-    res.json({ totalHourPointKWH });
-  });
-}
-
-// Total Data Point of last One Month KWH-------------------------------------------------------------------------
-function getLastMonthDataPointKWH(req, res) {
-  const query = "SELECT DATE(date_time) as day, SUM(kwh) as total_kwh FROM main_database WHERE device_uid = 'SL01202302' AND date_time >= DATE_SUB(NOW(), INTERVAL 1 MONTH) GROUP BY day ORDER BY day DESC LIMIT 31";
-  db.query(query, (error, results, fields) => {
-    if (error) throw error;
-    const monthlyDataPointKWH = results.reverse();
-    res.json({ monthlyDataPointKWH });
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error deleting device" });
+    } else {
+      res.json({ success: true });
+    }
   });
 }
 
 module.exports = { 
   //Signle Values for total Cards
-  getLastHourDataKWH, 
-  getLastMonthDataKWH, 
-  getLastHourDataKVAH, 
-  getLastMonthDataKVAH,
-  getLastHourDataPF,
-  getLastMonthDataPF,
-  getLastHourDataVoltage,
-  getLastMonthDataVoltage,
-
-  //Multiple Values For Charts
-  getLastHourDataPointKWH,
-  getLastMonthDataPointKWH,
+  getThisHourData,
+  getThisMonthData,
+  getPrevMonthData,
+  getUserDevices,
+  addDevice,
+  deleteDevice
 };
