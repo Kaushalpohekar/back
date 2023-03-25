@@ -2,25 +2,17 @@ const express = require('express');
 const router = express.Router();
 const controller = require('./controller');
 
-router.get('/KWH-last-hour', controller.getLastHourDataKWH);
+router.get('/this-hour-data', controller.getThisHourData);
 
-router.get('/KWH-last-month', controller.getLastMonthDataKWH);
+router.get('/this-month-data', controller.getThisMonthData);
 
-router.get('/KVAH-last-hour', controller.getLastHourDataKVAH);
+router.get('/prev-month-data', controller.getPrevMonthData);
 
-router.get('/KVAH-last-month', controller.getLastMonthDataKVAH);
+router.get('/user-devices/:userId', controller.getUserDevices);
 
-router.get('/PF-last-hour', controller.getLastHourDataPF);
+router.post('/add-device', controller.addDevice);
 
-router.get('/PF-last-month', controller.getLastMonthDataPF);
-
-router.get('/Voltage-last-hour', controller.getLastHourDataVoltage);
-
-router.get('/Voltage-last-month', controller.getLastMonthDataVoltage);
-
-router.get('/KWH-last-hour-points', controller.getLastHourDataPointKWH);
-
-router.get('/KWH-last-month-points', controller.getLastMonthDataPointKWH);
+router.delete('/delete-device/:deviceId', controller.deleteDevice);
 
 router.post('/signup', controller.signup);
 
