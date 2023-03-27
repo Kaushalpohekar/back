@@ -106,6 +106,20 @@ function deleteDevice(req, res) {
   });
 }
 
+function editDevice(req, res) {
+  const deviceId = req.params.deviceId;
+  const updatedDevice = req.body;
+  const query = `UPDATE Dash_device SET device_name = '${updatedDevice.name}', location = '${updatedDevice.location}' WHERE device_uid = '${deviceId}'`;
+  db.query(query, (error, results, fields) => {
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error updating device" });
+    } else {
+      res.json({ success: true });
+    }
+  });
+}
+
 // Get all Data -------------------------------------------------------------------------
 function data(req, res) {
   const sql = 'SELECT * FROM energy_data';
@@ -116,6 +130,7 @@ function data(req, res) {
     res.send(results);
   });
 }
+
 // Get all Data todays -------------------------------------------------------------------------
 function data_daily(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE DATE(timestamp) = CURDATE();';
@@ -126,6 +141,7 @@ function data_daily(req, res) {
     res.send(results);
   });
 }
+
 // Get Data of 1 hour -------------------------------------------------------------------------
 function data_hour(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR);';
@@ -136,6 +152,7 @@ function data_hour(req, res) {
     res.send(results);
   });
 }
+
 // Get Data of 1 week -------------------------------------------------------------------------
 function data_week(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 WEEK)';
@@ -146,6 +163,7 @@ function data_week(req, res) {
     res.send(results);
   });
 }
+
 // Get Data of 1 month -------------------------------------------------------------------------
 function data_month(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 MONTH)';
@@ -156,6 +174,7 @@ function data_month(req, res) {
     res.send(results);
   });
 }
+
 // Get Data of 1 min -------------------------------------------------------------------------
 function data_min(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)';
@@ -166,6 +185,7 @@ function data_min(req, res) {
     res.send(results);
   });
 }
+
 // Get Data of 1 year -------------------------------------------------------------------------
 function data_year(req, res) {
   const sql = 'SELECT * FROM energy_data WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 YEAR)';
@@ -178,35 +198,39 @@ function data_year(req, res) {
 }
 
 // Signup Function -------------------------------------------------------------------------
-async function signup(req, res) {
+function signup(req, res) {
   const { company_name, company_admin_name, designation, company_email, contact_number, password } = req.body;
   const userid = uuid.v4();
 
-
   // Hash the password
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  // Insert user data into the database
-  const query = `INSERT INTO Dash_user (userid,company_name, company_admin_name, designation, company_email, contact_number, password,created_at) VALUES (?, ?, ?, ?, ?, ?,?,?)`;
-  const values = [userid, company_name, company_admin_name, designation, company_email, contact_number, hashedPassword, new Date()];
-  db.query(query, values, (err, result) => {
+  bcrypt.hash(password, 10, (err, hashedPassword) => {
     if (err) {
       console.error(err);
-      res.json({ success: 0, message: 'Not able to register ' });
+      res.status(500).send('Error occurred while hashing the password');
     } else {
-      res.json({ success: 1, message: 'User Signed Up successfully' });
+      // Insert user data into the database
+      const query = `INSERT INTO Dash_user (userid,company_name, company_admin_name, designation, company_email, contact_number, password,created_at) VALUES (?, ?, ?, ?, ?, ?,?,?)`;
+      const values = [userid, company_name, company_admin_name, designation, company_email, contact_number, hashedPassword, new Date()];
+      db.query(query, values, (err, result) => {
+        if (err) {
+          console.error(err);
+          res.json({ success: 0, message: 'Not able to register ' });
+        } else {
+          res.json({ success: 1, message: 'User Signed Up successfully' });
+        }
+      });
     }
   });
 }
 
 // Login Function Function -------------------------------------------------------------------------
-async function login(req, res) {
+function login(req, res) {
   const { company_email, password } = req.body;
 
   try {
     // Retrieve user data from the database
     const query = 'SELECT * FROM Dash_user WHERE company_email = ?';
-    db.query(query, company_email, async (err, result) => {
+    db.query(query, company_email, (err, result) => {
       if (err) {
         console.error(err);
         res.status(500).send('Error occurred while retrieving user data');
@@ -215,21 +239,29 @@ async function login(req, res) {
           res.json({ success: 0, message: 'Invalid credentials' });
         } else {
           const user = result[0];
-          const passwordMatch = await bcrypt.compare(password, user.password);
-          if (passwordMatch) {
-            const token = jwt.sign({ userid: user.userid }, 'mysecretkey');
-            res.json({ success: 1, token: token });
-          } else {
-            res.json({ success: 0, message: 'Invalid credentials' });
-          }
+          bcrypt.compare(password, user.password, (err, passwordMatch) => {
+            if (err) {
+              console.error(err);
+              res.status(500).send('Error occurred while comparing password');
+            } else {
+              if (passwordMatch) {
+                const token = jwt.sign({ userid: user.userid }, 'mysecretkey');
+                res.json({ success: 1, token: token });
+              } else {
+                res.json({ success: 0, message: 'Invalid credentials' });
+              }
+            }
+          });
         }
       }
     });
   } catch (error) {
     console.error(error);
-    res.status(500).send('Error occurred while comparing password');
+    res.status(500).send('Error occurred while retrieving user data');
   }
 }
+
+
 //function to view all the users in the database -----------------------------------------------
 function users(req, res) {
   const query = `SELECT * FROM Dash_user`;
@@ -291,13 +323,14 @@ function users(req, res) {
 //     res.status(500).send('Error occurred while retrieving password');
 //   }
 // }
-async function forgotPassword(req, res) {
+
+function forgotPassword(req, res) {
   const { company_email } = req.body;
 
   try {
     // Retrieve user data from the database
     const query = 'SELECT * FROM Dash_user WHERE company_email = ?';
-    db.query(query, company_email, async (err, result) => {
+    db.query(query, company_email, (err, result) => {
       if (err) {
         console.error(err);
         res.status(500).send('Error occurred while retrieving user data');
@@ -313,7 +346,7 @@ async function forgotPassword(req, res) {
           // Update the user's password in the database
           const updateQuery = 'UPDATE Dash_user SET password = ? WHERE company_email = ?';
           const saltRounds = 10; 
-          db.query(updateQuery, [bcrypt.hashSync(newPassword, saltRounds), company_email], async (err, result) => {
+          db.query(updateQuery, [bcrypt.hashSync(newPassword, saltRounds), company_email], (err, result) => {
             if (err) {
               console.error(err);
               res.status(500).send('Error occurred while updating password');
@@ -350,9 +383,6 @@ async function forgotPassword(req, res) {
     res.status(500).send('Error occurred while resetting password');
   }
 }
-
-
-
 
 
 // Function to get All energy data ------------------------------------------------
@@ -413,17 +443,23 @@ function allEnergyData(req, res) {
 
 
 module.exports = {
-  //Signle Values for total Cards
-  getLastHourDataKWH, 
-  getLastMonthDataKWH, 
-  getLastHourDataKVAH, 
-  getLastMonthDataKVAH,
-  getLastHourDataPF,
-  getLastMonthDataPF,
-  getLastHourDataVoltage,
-  getLastMonthDataVoltage,
-
-  //Multiple Values For Charts
-  getLastHourDataPointKWH,
-  getLastMonthDataPointKWH,
+  getThisHourData,
+  getThisMonthData,
+  getPrevMonthData,
+  getUserDevices,
+  addDevice,
+  deleteDevice,
+  editDevice,
+  data,
+  data_daily,
+  data_hour,
+  data_week,
+  data_month,
+  data_min,
+  data_year,
+  signup,
+  login,
+  users,
+  forgotPassword,
+  allEnergyData,
 };

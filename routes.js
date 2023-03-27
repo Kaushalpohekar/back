@@ -14,6 +14,8 @@ router.post('/add-device', controller.addDevice);
 
 router.delete('/delete-device/:deviceId', controller.deleteDevice);
 
+router.put('/edit-device/:deviceId', controller.editDevice);
+
 router.post('/signup', controller.signup);
 
 router.post('/login', controller.login);
