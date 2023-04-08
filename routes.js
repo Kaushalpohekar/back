@@ -20,6 +20,8 @@ router.post('/signup', controller.signup);
 
 router.post('/login', controller.login);
 
+router.get('/user', controller.verifyToken, controller.getUser);
+
 router.get('/data',controller.data);
 
 router.get('/data_daily',controller.data_daily);
@@ -34,10 +36,12 @@ router.get('/data_min',controller.data_min);
 
 router.get('/data_year',controller.data_year);
 
-router.get('/users',controller.users);
-
 router.get('/energy-management-data',controller.allEnergyData);
 
 router.post('/forgot-password',controller.forgotPassword);
+
+router.get('/total-data-live-hour/:userId', controller.getThisHourTotalData);
+
+router.get('/total-data-live-month/:userId', controller.getThisMonthTotalData);
 
 module.exports = router;

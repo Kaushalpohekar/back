@@ -223,7 +223,6 @@ function signup(req, res) {
   });
 }
 
-// Login Function Function -------------------------------------------------------------------------
 function login(req, res) {
   const { company_email, password } = req.body;
 
@@ -246,7 +245,11 @@ function login(req, res) {
             } else {
               if (passwordMatch) {
                 const token = jwt.sign({ userid: user.userid }, 'mysecretkey');
-                res.json({ success: 1, token: token });
+                res.json({
+                  success: 1,
+                  token: token,
+                  userData: user
+                });
               } else {
                 res.json({ success: 0, message: 'Invalid credentials' });
               }
@@ -261,9 +264,45 @@ function login(req, res) {
   }
 }
 
+function verifyToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ success: 0, message: 'Unauthorized access' });
+  }
+  jwt.verify(token, 'mysecretkey', (err, user) => {
+    if (err) {
+      return res.status(403).json({ success: 0, message: 'Invalid token' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+function getUser(req, res) {
+  const userId = req.user.userid;
+  const query = 'SELECT * FROM Dash_user WHERE userid = ?';
+  db.query(query, userId, (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send('Error occurred while retrieving user data');
+    } else {
+      if (result.length === 0) {
+        res.json({ success: 0, message: 'User not found' });
+      } else {
+        const user = result[0];
+        res.json({
+          success: 1,
+          userData: user
+        });
+      }
+    }
+  });
+}
+
 
 //function to view all the users in the database -----------------------------------------------
-function users(req, res) {
+/*function users(req, res) {
   const query = `SELECT * FROM Dash_user`;
   db.query(query, (err, results) => {
     if (err) {
@@ -273,7 +312,7 @@ function users(req, res) {
       res.status(200).json(results);
     }
   });
-}
+}*/
 
 
 // // Forgot Password Function
@@ -440,6 +479,74 @@ function allEnergyData(req, res) {
   });
 }
 
+function getThisHourTotalData(req, res) {
+  const userId = req.params.userId;
+  const query = `SELECT 
+  Dash_device.user_id,
+  SUM(Device_data_hour.voltage_N) AS total_voltage_N,
+  SUM(Device_data_hour.PF) AS total_PF,
+  SUM(Device_data_hour.kvah) AS total_kvah,
+  SUM(Device_data_hour.kwh) AS total_kwh
+FROM 
+  SalasarDB.Dash_device 
+  INNER JOIN SalasarDB.Device_data_hour ON Dash_device.device_uid = Device_data_hour.device_uid
+  INNER JOIN (
+    SELECT device_uid, MAX(hour) AS hour
+    FROM SalasarDB.Device_data_hour 
+    GROUP BY device_uid
+  ) AS latest_data ON Device_data_hour.device_uid = latest_data.device_uid AND Device_data_hour.hour = latest_data.hour
+WHERE
+  Dash_device.user_id = '${userId}'
+GROUP BY
+  Dash_device.user_id;`;
+
+  db.query(query, (error, results, fields) => {
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error retrieving last hour data" });
+    } else if (results.length === 0) {;
+      res.status(404).json({ success: false, message: "No data found for user" });
+    } else {
+      const data = results[0];
+      res.json(data);
+    }
+  });
+}
+
+function getThisMonthTotalData(req, res) {
+  const userId = req.params.userId;
+  const query = `SELECT 
+  Dash_device.user_id,
+  SUM(Device_data_monthly.voltage_N) AS total_voltage_N,
+  SUM(Device_data_monthly.PF) AS total_PF,
+  SUM(Device_data_monthly.kvah) AS total_kvah,
+  SUM(Device_data_monthly.kwh) AS total_kwh
+FROM 
+  SalasarDB.Dash_device 
+  INNER JOIN SalasarDB.Device_data_monthly ON Dash_device.device_uid = Device_data_monthly.device_uid
+  INNER JOIN (
+    SELECT device_uid, MAX(month_start) AS month_start
+    FROM SalasarDB.Device_data_monthly 
+    GROUP BY device_uid
+  ) AS latest_data ON Device_data_monthly.device_uid = latest_data.device_uid AND Device_data_monthly.month_start = latest_data.month_start
+WHERE
+  Dash_device.user_id = '${userId}'
+GROUP BY
+  Dash_device.user_id;`;
+
+  db.query(query, (error, results, fields) => {
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error retrieving last month data" });
+    } else if (results.length === 0) {
+      res.status(404).json({ success: false, message: "No data found for user" });
+    } else {
+      const data = results[0];
+      res.json(data);
+    }
+  });
+}
+
 
 
 module.exports = {
@@ -459,7 +566,10 @@ module.exports = {
   data_year,
   signup,
   login,
-  users,
+  verifyToken,
+  getUser,  
   forgotPassword,
   allEnergyData,
+  getThisHourTotalData,
+  getThisMonthTotalData,
 };
