@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const controller = require('./controller');
 
-router.get('/this-hour-data', controller.getThisHourData);
+router.get('/this-hour-data/:deviceId', controller.getThisHourData);
 
-router.get('/this-month-data', controller.getThisMonthData);
+router.get('/this-month-data/:deviceId', controller.getThisMonthData);
 
-router.get('/prev-month-data', controller.getPrevMonthData);
+router.get('/prev-month-data/:deviceId', controller.getPrevMonthData);
 
 router.get('/user-devices/:userId', controller.getUserDevices);
 
@@ -43,5 +43,11 @@ router.post('/forgot-password',controller.forgotPassword);
 router.get('/total-data-live-hour/:userId', controller.getThisHourTotalData);
 
 router.get('/total-data-live-month/:userId', controller.getThisMonthTotalData);
+
+router.get('/total-data-prev-month/:userId', controller.getPrevMonthTotalData);
+
+router.get('/device-data',controller.device_data);
+
+router.get('/columns/:table',controller.getColumns);
 
 module.exports = router;

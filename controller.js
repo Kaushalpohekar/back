@@ -8,7 +8,9 @@ const nodemailer = require('nodemailer');
 
 
 function getThisHourData(req, res) {
-  const query = "SELECT voltage_N, PF, kvah, kwh FROM Device_data_hour where device_uid = 'SL01202302' ORDER BY hour DESC LIMIT 1";
+  const deviceId = req.params.deviceId;
+  const query = `SELECT voltage_N, PF, kvah, kwh FROM Device_data_hour WHERE device_uid = '${deviceId}' ORDER BY hour DESC LIMIT 1`;
+
   db.query(query, (error, results, fields) => {
     if (error) {
       console.error(error);
@@ -23,8 +25,10 @@ function getThisHourData(req, res) {
   });
 }
 
+
 function getThisMonthData(req, res) {
-  const query = "SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = 'SL01202302' ORDER BY month_start DESC LIMIT 1";
+  const deviceId = req.params.deviceId;
+  const query = `SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = '${deviceId}'  ORDER BY month_start DESC LIMIT 1`;
   db.query(query, (error, results, fields) => {
     if (error) {
       console.error(error);
@@ -40,7 +44,8 @@ function getThisMonthData(req, res) {
 }
 
 function getPrevMonthData(req, res) {
-  const query = "SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = 'SL01202302' ORDER BY month_start DESC LIMIT 2";
+  const deviceId = req.params.deviceId;
+  const query = `SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = '${deviceId}' ORDER BY month_start DESC LIMIT 2`;
   db.query(query, (error, results, fields) => {
     if (error) {
       console.error(error);
@@ -537,6 +542,36 @@ GROUP BY
   db.query(query, (error, results, fields) => {
     if (error) {
       console.error(error);
+      res.status(500).json({ success: false, message: "Error retrieving this month data" });
+    } else if (results.length === 0) {
+      res.status(404).json({ success: false, message: "No data found for user" });
+    } else {
+      const data = results[0];
+      res.json(data);
+    }
+  });
+}
+
+function getPrevMonthTotalData(req, res){
+  const userId = req.params.userId;
+  const query = `SELECT 
+                  Dash_device.user_id,
+                  SUM(Device_data_monthly.voltage_N) AS total_voltage_N,
+                  SUM(Device_data_monthly.PF) AS total_PF,
+                  SUM(Device_data_monthly.kvah) AS total_kvah,
+                  SUM(Device_data_monthly.kwh) AS total_kwh
+                FROM 
+                  SalasarDB.Dash_device 
+                  INNER JOIN SalasarDB.Device_data_monthly ON Dash_device.device_uid = Device_data_monthly.device_uid
+                WHERE
+                  Dash_device.user_id = '${userId}' AND
+                  Device_data_monthly.month_start >= DATE_FORMAT(NOW() - INTERVAL 1 MONTH, '%Y-%m-01') AND
+                  Device_data_monthly.month_start < DATE_FORMAT(NOW(), '%Y-%m-01')
+                GROUP BY
+                  Dash_device.user_id;`;
+  db.query(query, (error, results, fields) => {
+    if (error) {
+      console.error(error);
       res.status(500).json({ success: false, message: "Error retrieving last month data" });
     } else if (results.length === 0) {
       res.status(404).json({ success: false, message: "No data found for user" });
@@ -547,6 +582,54 @@ GROUP BY
   });
 }
 
+// Define a GET endpoint to fetch all column names from a database table
+// Example url: http://localhost:3000/device-data?columns=id,date,kwh,kvah,voltage_N,PF&device_uid=SL01202302&time_interval=last_year
+function getColumns(req, res){
+  const table = req.params.table;
+  const sql = `SHOW COLUMNS FROM ${table}`;
+
+  db.query(sql, (err, result) => {
+    if (err) throw err;
+    const columnNames = result.map(column => column.Field);
+    res.send(columnNames);
+  });
+};
+
+function device_data(req, res) {
+  const { columns, device_uid, time_interval } = req.query;
+
+  // Enclose the device_uid parameter in quotes
+  let query = `SELECT ${columns} FROM Device_data_daily WHERE device_uid = '${device_uid}' AND date > `;
+
+  switch (time_interval) {
+    case 'last_year':
+      query += 'DATE_SUB(NOW(), INTERVAL 1 YEAR)';
+      break;
+    case 'last_month':
+      query += 'DATE_SUB(NOW(), INTERVAL 1 MONTH)';
+      break;
+    case 'last_week':
+      query += 'DATE_SUB(NOW(), INTERVAL 1 WEEK)';
+      break;
+    case 'last_day':
+      query += 'DATE_SUB(NOW(), INTERVAL 1 DAY)';
+      break;
+    case 'last_hour':
+      query += 'DATE_SUB(NOW(), INTERVAL 1 HOUR)';
+      break;
+    default:
+      return res.status(400).json({ error: 'Invalid time interval' });
+  }
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Server error' });
+    }
+
+    res.json(results);
+  });
+}
 
 
 module.exports = {
@@ -572,4 +655,7 @@ module.exports = {
   allEnergyData,
   getThisHourTotalData,
   getThisMonthTotalData,
+  getPrevMonthTotalData,
+  getColumns,
+  device_data,
 };
