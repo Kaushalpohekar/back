@@ -5,7 +5,22 @@ const uuid = require('uuid');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
+db.query('SET time_zone = "Asia/Kolkata";', (err, results) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  console.log('Time zone set to Asia/Kolkata');
+});
 
+
+db.query('SELECT @@session.time_zone;', (err, results) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  console.log('Time zone of current database:', results[0]['@@session.time_zone']);
+});
 
 function getThisHourData(req, res) {
   const deviceId = req.params.deviceId;
@@ -488,8 +503,8 @@ function getThisHourTotalData(req, res) {
   const userId = req.params.userId;
   const query = `SELECT 
   Dash_device.user_id,
-  SUM(Device_data_hour.voltage_N) AS total_voltage_N,
-  SUM(Device_data_hour.PF) AS total_PF,
+  AVG(Device_data_hour.voltage_N) AS total_voltage_N,
+  AVG(Device_data_hour.PF) AS total_PF,
   SUM(Device_data_hour.kvah) AS total_kvah,
   SUM(Device_data_hour.kwh) AS total_kwh
 FROM 
@@ -522,8 +537,8 @@ function getThisMonthTotalData(req, res) {
   const userId = req.params.userId;
   const query = `SELECT 
   Dash_device.user_id,
-  SUM(Device_data_monthly.voltage_N) AS total_voltage_N,
-  SUM(Device_data_monthly.PF) AS total_PF,
+  AVG(Device_data_monthly.voltage_N) AS total_voltage_N,
+  AVG(Device_data_monthly.PF) AS total_PF,
   SUM(Device_data_monthly.kvah) AS total_kvah,
   SUM(Device_data_monthly.kwh) AS total_kwh
 FROM 
@@ -556,8 +571,8 @@ function getPrevMonthTotalData(req, res){
   const userId = req.params.userId;
   const query = `SELECT 
                   Dash_device.user_id,
-                  SUM(Device_data_monthly.voltage_N) AS total_voltage_N,
-                  SUM(Device_data_monthly.PF) AS total_PF,
+                  AVG(Device_data_monthly.voltage_N) AS total_voltage_N,
+                  AVG(Device_data_monthly.PF) AS total_PF,
                   SUM(Device_data_monthly.kvah) AS total_kvah,
                   SUM(Device_data_monthly.kwh) AS total_kwh
                 FROM 
@@ -632,6 +647,131 @@ function device_data(req, res) {
 }
 
 
+function getLiveDataForUser(req, res) {
+  const userId = req.params.userId;
+  const query = `
+                SELECT u.userid, 'All' AS device_uid,
+                   SUM(m.total_kwh) AS total_kwh,
+                   SUM(m.total_kvah) AS total_kvah,
+                   AVG(m.avg_pf) AS avg_pf,
+                   AVG(m.avg_voltage) AS avg_voltage
+                FROM (
+                SELECT d.user_id, m.device_uid,
+                       SUM(m.kwh) AS total_kwh,
+                       SUM(m.kvah) AS total_kvah,
+                       AVG(m.pf) AS avg_pf,
+                       AVG(m.voltage_N) AS avg_voltage
+                FROM SalasarDB.main_database AS m
+                INNER JOIN (
+                    SELECT device_uid, MAX(date_time) AS max_date_time
+                    FROM SalasarDB.main_database
+                    GROUP BY device_uid
+                ) AS m2 ON m.device_uid = m2.device_uid AND m.date_time = m2.max_date_time
+                INNER JOIN SalasarDB.Dash_device AS d ON m.device_uid = d.device_uid
+                WHERE d.user_id = '${userId}'
+                GROUP BY d.user_id, m.device_uid
+                ) AS m
+                INNER JOIN SalasarDB.Dash_user AS u ON m.user_id = u.userid
+                WHERE u.userid = '${userId}'
+                GROUP BY u.userid;`;
+
+  db.query(query, (error, results, fields) => {
+    if (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Error retrieving combined data" });
+    } else if (results.length === 0) {
+      res.status(404).json({ success: false, message: "No data found for user" });
+    } else {
+      const data = results[0];
+      res.json(data);
+    }
+  });
+}
+
+/*function liveCharts(req, res, next) {
+  const userId = req.params.userId;
+  const parameter = "kwh"; // Change this to the desired parameter
+
+  const query = `
+    SELECT dd.device_uid, dd.${parameter}, dd.datetime, d.device_name
+    FROM SalasarDB.Device_data_minute dd
+    JOIN Dash_device d ON dd.device_uid = d.device_uid
+    WHERE d.user_id = ? AND dd.datetime >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+    ORDER BY dd.datetime ASC;
+  `;
+
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      return next(err);
+    }
+
+    const entriesByDevice = {};
+    results.forEach(entry => {
+      if (!entriesByDevice[entry.device_uid]) {
+        entriesByDevice[entry.device_uid] = {
+          device_name: entry.device_name, // use the device_name property
+          labels: [],
+          data: [],
+        };
+      }
+      entriesByDevice[entry.device_uid].labels.push(entry.datetime);
+      entriesByDevice[entry.device_uid].data.push(entry[parameter]);
+    });
+
+    res.json(entriesByDevice);
+  });
+}*/
+function liveCharts(req, res, next) {
+  const userId = req.params.userId;
+  const parameter = req.query.parameter || "kwh"; // Change this to the desired parameter or use the default value "kwh"
+
+  const query = `
+    SELECT dd.device_uid, dd.${parameter}, dd.datetime, d.device_name
+    FROM SalasarDB.Device_data_minute dd
+    JOIN Dash_device d ON dd.device_uid = d.device_uid
+    WHERE d.user_id = ? AND dd.datetime >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+    ORDER BY dd.datetime ASC;
+  `;
+
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      return next(err);
+    }
+
+    const entriesByDevice = {};
+    results.forEach(entry => {
+      if (!entriesByDevice[entry.device_uid]) {
+        entriesByDevice[entry.device_uid] = {
+          device_name: entry.device_name,
+          labels: [],
+          data: [],
+        };
+      }
+      entriesByDevice[entry.device_uid].labels.push(entry.datetime);
+      entriesByDevice[entry.device_uid].data.push(entry[parameter]);
+    });
+
+    res.json(entriesByDevice);
+  });
+}
+
+
+
+function fetchLastTenEntries(req, res) {
+  const { columns, device_uid } = req.query;
+  const query = `SELECT ${columns} FROM Device_data_hour WHERE device_uid = '${device_uid}' ORDER BY hour DESC LIMIT 10`;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Server error' });
+    }
+
+    res.json(results);
+  });
+}
+
+
 module.exports = {
   getThisHourData,
   getThisMonthData,
@@ -658,4 +798,7 @@ module.exports = {
   getPrevMonthTotalData,
   getColumns,
   device_data,
+  getLiveDataForUser,
+  liveCharts,
+  fetchLastTenEntries,
 };

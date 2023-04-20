@@ -50,4 +50,10 @@ router.get('/device-data',controller.device_data);
 
 router.get('/columns/:table',controller.getColumns);
 
+router.get('/live-data/:userId', controller.getLiveDataForUser);
+
+router.get('/live-charts/:userId', controller.liveCharts)
+
+router.get('/lastTenEntriesTable',controller.fetchLastTenEntries);
+
 module.exports = router;
