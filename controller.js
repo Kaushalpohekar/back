@@ -221,28 +221,41 @@ function data_year(req, res) {
 // Signup Function -------------------------------------------------------------------------
 function signup(req, res) {
   const { company_name, company_admin_name, designation, company_email, contact_number, password } = req.body;
-  const userid = uuid.v4();
-
-  // Hash the password
-  bcrypt.hash(password, 10, (err, hashedPassword) => {
+  
+  // Fetch the last user ID from the database and increment it by 1
+  const query = `SELECT userid FROM Dash_user ORDER BY userid DESC LIMIT 1;`;
+  db.query(query, (err, result) => {
     if (err) {
       console.error(err);
-      res.status(500).send('Error occurred while hashing the password');
+      res.status(500).send('Error occurred while fetching last user ID');
     } else {
-      // Insert user data into the database
-      const query = `INSERT INTO Dash_user (userid,company_name, company_admin_name, designation, company_email, contact_number, password,created_at) VALUES (?, ?, ?, ?, ?, ?,?,?)`;
-      const values = [userid, company_name, company_admin_name, designation, company_email, contact_number, hashedPassword, new Date()];
-      db.query(query, values, (err, result) => {
+      const lastUserId = result[0].userid;
+      const newUserId = parseInt(lastUserId.substring(1)) + 1;
+      const userid = 'U' + newUserId.toString().padStart(5, '0');
+      
+      // Hash the password
+      bcrypt.hash(password, 10, (err, hashedPassword) => {
         if (err) {
           console.error(err);
-          res.json({ success: 0, message: 'Not able to register ' });
+          res.status(500).send('Error occurred while hashing the password');
         } else {
-          res.json({ success: 1, message: 'User Signed Up successfully' });
+          // Insert user data into the database
+          const query = `INSERT INTO Dash_user (userid,company_name, company_admin_name, designation, company_email, contact_number, password,created_at) VALUES (?, ?, ?, ?, ?, ?,?,?)`;
+          const values = [userid, company_name, company_admin_name, designation, company_email, contact_number, hashedPassword, new Date()];
+          db.query(query, values, (err, result) => {
+            if (err) {
+              console.error(err);
+              res.json({ success: 0, message: 'Not able to register ' });
+            } else {
+              res.json({ success: 1, message: 'User Signed Up successfully' });
+            }
+          });
         }
       });
     }
   });
 }
+
 
 function login(req, res) {
   const { company_email, password } = req.body;
