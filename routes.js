@@ -22,6 +22,9 @@ router.post('/login', controller.login);
 
 router.get('/user', controller.verifyToken, controller.getUser);
 
+router.put('/user', controller.verifyToken, controller.updateUser);
+
+
 router.get('/data',controller.data);
 
 router.get('/data_daily',controller.data_daily);

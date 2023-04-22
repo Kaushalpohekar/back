@@ -5,6 +5,7 @@ const uuid = require('uuid');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
+
 db.query('SET time_zone = "Asia/Kolkata";', (err, results) => {
   if (err) {
     console.error(err);
@@ -142,7 +143,7 @@ function editDevice(req, res) {
 
 // Get all Data -------------------------------------------------------------------------
 function data(req, res) {
-  const sql = 'SELECT * FROM energy_data';
+  const sql = 'SELECT * FROM main_database';
   db.query(sql, (error, results) => {
     if (error) {
       throw error;
@@ -320,68 +321,23 @@ function getUser(req, res) {
   });
 }
 
+function updateUser(req, res) {
+  const userId = req.user.userid;
+  const { company_name, company_admin_name, designation, contact_number, address } = req.body;
+  
+  const query = 'UPDATE Dash_user SET company_name = ?, company_admin_name = ?, designation = ?, contact_number = ?, address = ? WHERE userid = ?';
+  const values = [company_name, company_admin_name, designation, contact_number, address, userId];
 
-//function to view all the users in the database -----------------------------------------------
-/*function users(req, res) {
-  const query = `SELECT * FROM Dash_user`;
-  db.query(query, (err, results) => {
+  db.query(query, values, (err, result) => {
     if (err) {
       console.error(err);
-      res.status(500).send('Error occurred while retrieving users');
+      res.status(500).send('Error occurred while updating user data');
     } else {
-      res.status(200).json(results);
+      res.json({ success: 1, message: 'User data updated successfully' });
     }
   });
-}*/
+}
 
-
-// // Forgot Password Function
-// async function forgotPassword(req, res) {
-//   const { company_email } = req.body;
-
-//   try {
-//     // Retrieve user data from the database
-//     const query = 'SELECT * FROM Dash_user WHERE company_email = ?';
-//     db.query(query, company_email, async (err, result) => {
-//       if (err) {
-//         console.error(err);
-//         res.status(500).send('Error occurred while retrieving user data');
-//       } else {
-//         if (result.length === 0) {
-//           res.json({ success: 0, message: 'Invalid email address' });
-//         } else {
-//           const user = result[0];
-
-//           // Send the existing password to the user's email address using nodemailer
-//           const transporter = nodemailer.createTransport({
-//             service: 'gmail',
-//             auth: {
-//               user: 'raotanmay97@gmail.com',
-//               pass: 'hmgaqbvxmdkofdhn'
-//             }
-//           });
-//           const mailOptions = {
-//             from: 'raotanmay100@gmail.com',
-//             to: user.company_email,
-//             subject: 'Password Reminder for Your Dashboard Account',
-//             text: `Your password for your Dashboard account is: ${user.password}`
-//           };
-//           transporter.sendMail(mailOptions, (err, info) => {
-//             if (err) {
-//               console.error(err);
-//               res.status(500).send('Error occurred while sending email');
-//             } else {
-//               res.json({ success: 1, message: 'Password sent to your email address' });
-//             }
-//           });
-//         }
-//       }
-//     });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).send('Error occurred while retrieving password');
-//   }
-// }
 
 function forgotPassword(req, res) {
   const { company_email } = req.body;
@@ -790,7 +746,8 @@ module.exports = {
   signup,
   login,
   verifyToken,
-  getUser,  
+  getUser,
+  updateUser,  
   forgotPassword,
   allEnergyData,
   getThisHourTotalData,
