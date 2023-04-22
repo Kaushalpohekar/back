@@ -143,7 +143,7 @@ function editDevice(req, res) {
 
 // Get all Data -------------------------------------------------------------------------
 function data(req, res) {
-  const sql = 'SELECT * FROM main_database';
+  const sql = 'SELECT * FROM energy_data';
   db.query(sql, (error, results) => {
     if (error) {
       throw error;
