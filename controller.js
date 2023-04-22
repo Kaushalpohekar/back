@@ -229,9 +229,10 @@ function signup(req, res) {
       console.error(err);
       res.status(500).send('Error occurred while fetching last user ID');
     } else {
-      const lastUserId = result[0].userid;
-      const newUserId = parseInt(lastUserId.substring(1)) + 1;
-      const userid = 'U' + newUserId.toString().padStart(5, '0');
+      let lastUserId = result[0].userid;
+      let lastUserIdNumber = parseInt(lastUserId.substring(5));
+      let newUserIdNumber = lastUserIdNumber + 1;
+      let newUserId = 'SENSE' + newUserIdNumber.toString().padStart(5, '0');
       
       // Hash the password
       bcrypt.hash(password, 10, (err, hashedPassword) => {
@@ -241,7 +242,7 @@ function signup(req, res) {
         } else {
           // Insert user data into the database
           const query = `INSERT INTO Dash_user (userid,company_name, company_admin_name, designation, company_email, contact_number, password,created_at) VALUES (?, ?, ?, ?, ?, ?,?,?)`;
-          const values = [userid, company_name, company_admin_name, designation, company_email, contact_number, hashedPassword, new Date()];
+          const values = [newUserId, company_name, company_admin_name, designation, company_email, contact_number, hashedPassword, new Date()];
           db.query(query, values, (err, result) => {
             if (err) {
               console.error(err);
@@ -255,6 +256,7 @@ function signup(req, res) {
     }
   });
 }
+
 
 
 function login(req, res) {
