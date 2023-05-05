@@ -23,7 +23,8 @@ router.post('/login', controller.login);
 router.get('/user', controller.verifyToken, controller.getUser);
 
 router.put('/user', controller.verifyToken, controller.updateUser);
-
+// Update user password
+router.put('/user/password', controller.verifyToken, controller.updatePassword);
 
 router.get('/data',controller.data);
 

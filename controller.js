@@ -25,7 +25,7 @@ db.query('SELECT @@session.time_zone;', (err, results) => {
 
 function getThisHourData(req, res) {
   const deviceId = req.params.deviceId;
-  const query = `SELECT voltage_N, PF, kvah, kwh FROM Device_data_hour WHERE device_uid = '${deviceId}' ORDER BY hour DESC LIMIT 1`;
+  const query = `SELECT voltage_N, PF, kvah, kwh FROM Device_data_hour WHERE device_uid = '${deviceId}' ORDER BY datetime DESC LIMIT 1`; //hour
 
   db.query(query, (error, results, fields) => {
     if (error) {
@@ -41,10 +41,9 @@ function getThisHourData(req, res) {
   });
 }
 
-
 function getThisMonthData(req, res) {
   const deviceId = req.params.deviceId;
-  const query = `SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = '${deviceId}'  ORDER BY month_start DESC LIMIT 1`;
+  const query = `SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = '${deviceId}'  ORDER BY datetime DESC LIMIT 1`;//month_start
   db.query(query, (error, results, fields) => {
     if (error) {
       console.error(error);
@@ -61,7 +60,7 @@ function getThisMonthData(req, res) {
 
 function getPrevMonthData(req, res) {
   const deviceId = req.params.deviceId;
-  const query = `SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = '${deviceId}' ORDER BY month_start DESC LIMIT 2`;
+  const query = `SELECT voltage_N, PF, kvah, kwh FROM Device_data_monthly where device_uid = '${deviceId}' ORDER BY datetime DESC LIMIT 2`;//month_start
   db.query(query, (error, results, fields) => {
     if (error) {
       console.error(error);
@@ -257,8 +256,6 @@ function signup(req, res) {
   });
 }
 
-
-
 function login(req, res) {
   const { company_email, password } = req.body;
 
@@ -353,6 +350,55 @@ function updateUser(req, res) {
   });
 }
 
+function updatePassword(req, res) {
+  const userId = req.user.userid;
+  const { current_password, new_password } = req.body;
+
+  // Retrieve the hashed password from the database
+  const query = 'SELECT password FROM Dash_user WHERE userid = ?';
+  db.query(query, [userId], (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send('Error occurred while updating password');
+    } else if (result.length === 0) {
+      res.status(404).json({ success: 0, message: 'User not found' });
+    } else {
+      const hashedCurrentPassword = result[0].password;
+
+      if (!current_password || !hashedCurrentPassword) {
+        res.status(400).json({ success: 0, message: 'Current password or hashed password is missing' });
+      } else {
+        // Compare the hashed version of the current password with the hashed password retrieved from the database
+        bcrypt.compare(current_password, hashedCurrentPassword, (err, isMatch) => {
+          if (err) {
+            console.error(err);
+            res.status(500).send('Error occurred while updating password');
+          } else if (!isMatch) {
+            res.status(400).json({ success: 0, message: 'Current password is incorrect' });
+          } else {
+            // Hash the new password
+            const hashedNewPassword = bcrypt.hashSync(new_password, 10);
+
+            // Update the user's password in the database
+            const updateQuery = 'UPDATE Dash_user SET password = ? WHERE userid = ?';
+            db.query(updateQuery, [hashedNewPassword, userId], (err, result) => {
+              if (err) {
+                console.error(err);
+                res.status(500).send('Error occurred while updating password');
+              } else {
+                res.json({ success: 1, message: 'Password updated successfully' });
+              }
+            });
+          }
+        });
+      }
+    }
+  });
+}
+
+
+
+
 
 function forgotPassword(req, res) {
   const { company_email } = req.body;
@@ -413,7 +459,6 @@ function forgotPassword(req, res) {
     res.status(500).send('Error occurred while resetting password');
   }
 }
-
 
 // Function to get All energy data ------------------------------------------------
 function allEnergyData(req, res) {
@@ -482,10 +527,10 @@ FROM
   SalasarDB.Dash_device 
   INNER JOIN SalasarDB.Device_data_hour ON Dash_device.device_uid = Device_data_hour.device_uid
   INNER JOIN (
-    SELECT device_uid, MAX(hour) AS hour
+    SELECT device_uid, MAX(datetime) AS datetime
     FROM SalasarDB.Device_data_hour 
     GROUP BY device_uid
-  ) AS latest_data ON Device_data_hour.device_uid = latest_data.device_uid AND Device_data_hour.hour = latest_data.hour
+  ) AS latest_data ON Device_data_hour.device_uid = latest_data.device_uid AND Device_data_hour.datetime = latest_data.datetime
 WHERE
   Dash_device.user_id = '${userId}'
 GROUP BY
@@ -516,10 +561,10 @@ FROM
   SalasarDB.Dash_device 
   INNER JOIN SalasarDB.Device_data_monthly ON Dash_device.device_uid = Device_data_monthly.device_uid
   INNER JOIN (
-    SELECT device_uid, MAX(month_start) AS month_start
+    SELECT device_uid, MAX(datetime) AS datetime
     FROM SalasarDB.Device_data_monthly 
     GROUP BY device_uid
-  ) AS latest_data ON Device_data_monthly.device_uid = latest_data.device_uid AND Device_data_monthly.month_start = latest_data.month_start
+  ) AS latest_data ON Device_data_monthly.device_uid = latest_data.device_uid AND Device_data_monthly.datetime = latest_data.datetime
 WHERE
   Dash_device.user_id = '${userId}'
 GROUP BY
@@ -551,8 +596,8 @@ function getPrevMonthTotalData(req, res){
                   INNER JOIN SalasarDB.Device_data_monthly ON Dash_device.device_uid = Device_data_monthly.device_uid
                 WHERE
                   Dash_device.user_id = '${userId}' AND
-                  Device_data_monthly.month_start >= DATE_FORMAT(NOW() - INTERVAL 1 MONTH, '%Y-%m-01') AND
-                  Device_data_monthly.month_start < DATE_FORMAT(NOW(), '%Y-%m-01')
+                  Device_data_monthly.datetime >= DATE_FORMAT(NOW() - INTERVAL 1 MONTH, '%Y-%m-01') AND
+                  Device_data_monthly.datetime < DATE_FORMAT(NOW(), '%Y-%m-01')
                 GROUP BY
                   Dash_device.user_id;`;
   db.query(query, (error, results, fields) => {
@@ -617,7 +662,6 @@ function device_data(req, res) {
   });
 }
 
-
 function getLiveDataForUser(req, res) {
   const userId = req.params.userId;
   const query = `
@@ -632,12 +676,12 @@ function getLiveDataForUser(req, res) {
                        SUM(m.kvah) AS total_kvah,
                        AVG(m.pf) AS avg_pf,
                        AVG(m.voltage_N) AS avg_voltage
-                FROM SalasarDB.main_database AS m
+                FROM SalasarDB.Device_data_minute AS m
                 INNER JOIN (
-                    SELECT device_uid, MAX(date_time) AS max_date_time
-                    FROM SalasarDB.main_database
+                    SELECT device_uid, MAX(datetime) AS max_date_time
+                    FROM SalasarDB.Device_data_minute
                     GROUP BY device_uid
-                ) AS m2 ON m.device_uid = m2.device_uid AND m.date_time = m2.max_date_time
+                ) AS m2 ON m.device_uid = m2.device_uid AND m.datetime = m2.max_date_time
                 INNER JOIN SalasarDB.Dash_device AS d ON m.device_uid = d.device_uid
                 WHERE d.user_id = '${userId}'
                 GROUP BY d.user_id, m.device_uid
@@ -726,8 +770,6 @@ function liveCharts(req, res, next) {
   });
 }
 
-
-
 function fetchLastTenEntries(req, res) {
   const { columns, device_uid } = req.query;
   const query = `SELECT ${columns} FROM Device_data_hour WHERE device_uid = '${device_uid}' ORDER BY hour DESC LIMIT 10`;
@@ -762,7 +804,8 @@ module.exports = {
   login,
   verifyToken,
   getUser,
-  updateUser,  
+  updateUser,
+  updatePassword,  
   forgotPassword,
   allEnergyData,
   getThisHourTotalData,
