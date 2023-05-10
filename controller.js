@@ -626,30 +626,86 @@ function getColumns(req, res){
   });
 };
 
+// function device_data(req, res) {
+//   const { columns, device_uid, time_interval } = req.query;
+
+//   // Enclose the device_uid parameter in quotes
+//   let query = `SELECT ${columns} FROM Device_data_daily WHERE device_uid = '${device_uid}' AND date > `;
+
+//   switch (time_interval) {
+//     case 'last_year':
+//       query += 'DATE_SUB(NOW(), INTERVAL 1 YEAR)';
+//       break;
+//     case 'last_month':
+//       query += 'DATE_SUB(NOW(), INTERVAL 1 MONTH)';
+//       break;
+//     case 'last_week':
+//       query += 'DATE_SUB(NOW(), INTERVAL 1 WEEK)';
+//       break;
+//     case 'last_day':
+//       query += 'DATE_SUB(NOW(), INTERVAL 1 DAY)';
+//       break;
+//     case 'last_hour':
+//       query += 'DATE_SUB(NOW(), INTERVAL 1 HOUR)';
+//       break;
+//     default:
+//       return res.status(400).json({ error: 'Invalid time interval' });
+//   }
+
+//   db.query(query, (err, results) => {
+//     if (err) {
+//       console.error(err);
+//       return res.status(500).json({ error: 'Server error' });
+//     }
+
+//     res.json(results);
+//   });
+// }
+
+
 function device_data(req, res) {
   const { columns, device_uid, time_interval } = req.query;
+  let table;
+
+  switch (time_interval) {
+    case 'last_year':
+      table = 'Device_data_daily';
+      break;
+    case 'last_month':
+      table = 'Device_data_monthly';
+      break;
+    case 'last_week':
+      table = 'Device_data_weekly';
+      break;
+    case 'last_day':
+      table = 'Device_data_daily';
+      break;
+    case 'last_hour':
+      table = 'Device_data_hour';
+      break;
+    default:
+      return res.status(400).json({ error: 'Invalid time interval' });
+  }
 
   // Enclose the device_uid parameter in quotes
-  let query = `SELECT ${columns} FROM Device_data_daily WHERE device_uid = '${device_uid}' AND date > `;
+  let query = `SELECT ${columns} FROM ${table} WHERE device_uid = '${device_uid}' AND datetime > `;
 
   switch (time_interval) {
     case 'last_year':
       query += 'DATE_SUB(NOW(), INTERVAL 1 YEAR)';
       break;
     case 'last_month':
-      query += 'DATE_SUB(NOW(), INTERVAL 1 MONTH)';
+      query += 'DATE_SUB(NOW(), INTERVAL 1 YEAR)';
       break;
     case 'last_week':
-      query += 'DATE_SUB(NOW(), INTERVAL 1 WEEK)';
+      query += 'DATE_SUB(NOW(), INTERVAL 1 YEAR)';
       break;
     case 'last_day':
-      query += 'DATE_SUB(NOW(), INTERVAL 1 DAY)';
+      query += 'DATE_SUB(NOW(), INTERVAL 1 YEAR)';
       break;
     case 'last_hour':
-      query += 'DATE_SUB(NOW(), INTERVAL 1 HOUR)';
+      query += 'DATE_SUB(NOW(), INTERVAL 1 YEAR)';
       break;
-    default:
-      return res.status(400).json({ error: 'Invalid time interval' });
   }
 
   db.query(query, (err, results) => {
@@ -772,7 +828,7 @@ function liveCharts(req, res, next) {
 
 function fetchLastTenEntries(req, res) {
   const { columns, device_uid } = req.query;
-  const query = `SELECT ${columns} FROM Device_data_hour WHERE device_uid = '${device_uid}' ORDER BY hour DESC LIMIT 10`;
+  const query = `SELECT ${columns} FROM Device_data_hour WHERE device_uid = '${device_uid}' ORDER BY datetime DESC LIMIT 10`;
 
   db.query(query, (err, results) => {
     if (err) {
