@@ -60,4 +60,6 @@ router.get('/live-charts/:userId', controller.liveCharts)
 
 router.get('/lastTenEntriesTable',controller.fetchLastTenEntries);
 
+router.get('/filterData',controller.getFilteredData);
+
 module.exports = router;
