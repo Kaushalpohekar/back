@@ -841,6 +841,164 @@ function fetchLastTenEntries(req, res) {
 }
 
 
+function getFilteredData(req, res){
+  const filterMode = req.query.filterMode;
+  const interval = req.query.interval;
+  const startDate = req.query.startDate;
+  const endDate = req.query.endDate;
+  const deviceUID = req.query.device_uid;
+  const columns = req.query.columns;
+
+  if (filterMode === 'Last') {
+      const filteredData = getEnergyDataByLastInterval(interval, deviceUID, columns, res);
+  } else if (filterMode === 'Interval') {
+      const filteredData = getEnergyDataByInterval(startDate, endDate, deviceUID, columns, res);
+  } else {
+      res.status(400).json({ error: 'Invalid filter mode' });
+  }
+};
+
+
+// Helper function for filtering energy data by the last interval
+function getEnergyDataByLastInterval(interval, deviceUID, columns, res) {
+  // Define the time offset for each interval option
+  const intervalOptions = {
+      // Interval options here
+      '1s': 1 * 1000, // 1 second in milliseconds
+      '5s': 5 * 1000, // 5 seconds in milliseconds
+      '10s': 10 * 1000, // 10 seconds in milliseconds
+      '15s': 15 * 1000, // 15 seconds in milliseconds
+      '30s': 30 * 1000, // 30 seconds in milliseconds
+      '1m': 1 * 60 * 1000, // 1 minute in milliseconds
+      '2m': 2 * 60 * 1000, // 2 minutes in milliseconds
+      '5m': 5 * 60 * 1000, // 5 minutes in milliseconds
+      '10m': 10 * 60 * 1000, // 10 minutes in milliseconds
+      '15m': 15 * 60 * 1000, // 15 minutes in milliseconds
+      '30m': 30 * 60 * 1000, // 30 minutes in milliseconds
+      '1h': 1 * 60 * 60 * 1000, // 1 hour in milliseconds
+      '2h': 2 * 60 * 60 * 1000, // 2 hours in milliseconds
+      '5h': 5 * 60 * 60 * 1000, // 5 hours in milliseconds
+      '10h': 10 * 60 * 60 * 1000, // 10 hours in milliseconds
+      '15h': 15 * 60 * 60 * 1000, // 15 hours in milliseconds
+      '30h': 30 * 60 * 60 * 1000, // 30 hours in milliseconds
+      '1d': 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
+      '7d': 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+      '30d': 30 * 24 * 60 * 60 * 1000 // 30 days in milliseconds
+  };
+
+  // Additional interval options for time duration
+  const durationOptions = {
+      // Duration options here
+      'currentDay': {
+          start: new Date().setHours(0, 0, 0, 0),
+          end: new Date().setHours(23, 59, 59, 999)
+      },
+      'currentHour': {
+          start: new Date().setMinutes(0, 0, 0),
+          end: new Date().setMinutes(59, 59, 999)
+      },
+      'currentWeek': {
+          start: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - new Date().getDay()),
+          end: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - new Date().getDay() + 6, 23, 59, 59, 999)
+      },
+      'yesterday': {
+          start: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 1).setHours(0, 0, 0, 0),
+          end: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 1).setHours(23, 59, 59, 999)
+      },
+      'dayBeforeYesterday': {
+          start: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 2).setHours(0, 0, 0, 0),
+          end: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 2).setHours(23, 59, 59, 999)
+      },
+      'thisDayLastWeek': {
+          start: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 7).setHours(0, 0, 0, 0),
+          end: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 7).setHours(23, 59, 59, 999)
+      },
+      'previousWeekSunSat': {
+          start: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 7 - new Date().getDay()).setHours(0, 0, 0, 0),
+          end: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 7 - new Date().getDay() + 6, 23, 59, 59, 999)
+      },
+      'previousWeekMonSun': {
+          start: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 7 - new Date().getDay() + 1).setHours(0, 0, 0, 0),
+          end: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 7 - new Date().getDay() + 7, 23, 59, 59, 999)
+      },
+      'previousMonth': {
+          start: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).setHours(0, 0, 0, 0),
+          end: new Date(new Date().getFullYear(), new Date().getMonth(), 0, 23, 59, 59, 999)
+      },
+      'previousQuarter': {
+          start: new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3 - 3, 1).setHours(0, 0, 0, 0),
+          end: new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3, 0, 23, 59, 59, 999)
+      },
+      'previousHalfYear': {
+          start: new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 6) * 6 - 6, 1).setHours(0, 0, 0, 0),
+          end: new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 6) * 6, 0, 23, 59, 59, 999)
+      },
+      'previousYear': {
+          start: new Date(new Date().getFullYear() - 1, 0, 1).setHours(0, 0, 0, 0),
+          end: new Date(new Date().getFullYear() - 1, 11, 31, 23, 59, 59, 999)
+      }
+  };
+
+  if (intervalOptions.hasOwnProperty(interval)) {
+      const currentTime = new Date();
+      const timeOffset = intervalOptions[interval];
+      const startTime = new Date(currentTime - timeOffset).toISOString();
+      const endTime = currentTime.toISOString();
+
+      // Execute the query to fetch energy data based on the time range
+      const query = `SELECT ${columns} FROM Device_data_daily WHERE datetime BETWEEN ? AND ? AND device_uid = ?`;
+
+      db.query(query, [startTime, endTime, deviceUID], (err, results) => {
+          if (err) {
+              console.error('Error executing the query:', err);
+              return res.status(500).json({ error: 'Error executing the query' });
+          }
+
+          // Return the filtered energy data
+          res.json(results);
+      });
+  } else if (durationOptions.hasOwnProperty(interval)) {
+      // Handle duration options
+      const { start, end } = durationOptions[interval];
+
+      // Execute the query to fetch energy data based on the time range
+      const query = `SELECT ${columns} FROM Device_data_daily WHERE datetime BETWEEN ? AND ? AND device_uid = ?`;
+
+      db.query(query, [start, end, deviceUID], (err, results) => {
+          if (err) {
+              console.error('Error executing the query:', err);
+              return res.status(500).json({ error: 'Error executing the query' });
+          }
+
+          // Return the filtered energy data
+          res.json(results);
+      });
+  } else {
+      return res.json({ error: 'Invalid interval' });
+  }
+}
+
+// Helper function for filtering energy data by the selected interval
+function getEnergyDataByInterval(startDate, endDate, deviceUID, columns, res) {
+  // Implementation logic for filtering energy data by the selected interval
+  // Execute the query to fetch energy data based on the specified start and end dates
+  const query = `SELECT ${columns} FROM Device_data_daily WHERE datetime BETWEEN ? AND ? AND device_uid = ?`;
+
+  db.query(query, [startDate, endDate, deviceUID], (err, results) => {
+      if (err) {
+          console.error('Error executing the query:', err);
+          return res.status(500).json({ error: 'Error executing the query' });
+      }
+
+      // Return the filtered energy data
+      res.json(results);
+  });
+}
+
+
+
+
+
 module.exports = {
   getThisHourData,
   getThisMonthData,
@@ -872,4 +1030,5 @@ module.exports = {
   getLiveDataForUser,
   liveCharts,
   fetchLastTenEntries,
+  getFilteredData
 };
