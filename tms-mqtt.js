@@ -40,7 +40,6 @@ client.on('connect', () => {
     setInterval(() => {
       const message = generateRandomData(deviceId);
       client.publish(topic, message);
-      console.log(`Published to topic ${topic}: ${message}`);
     }, 20000);
   }
   for (let i = 10; i <= 100; i++) {
@@ -50,7 +49,6 @@ client.on('connect', () => {
     setInterval(() => {
       const message = generateRandomData(deviceId);
       client.publish(topic, message);
-      console.log(`Published to topic ${topic}: ${message}`);
     }, 20000);
   }
 });
