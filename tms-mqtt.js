@@ -42,16 +42,17 @@ client.on('connect', () => {
       client.publish(topic, message);
     }, 20000);
   }
-  for (let i = 10; i <= 100; i++) {
-    const deviceId = `SL012023${i}`;
-    const topic = `sense/live/${deviceId}`;
+  for (let i = 10; i <= 1000; i++) {
+      const deviceId = `SL012023${i}`;
+      const topic = `sense/live/${deviceId}`;
 
-    setInterval(() => {
-      const message = generateRandomData(deviceId);
-      client.publish(topic, message);
-    }, 20000);
+      setInterval(() => {
+        const message = generateRandomData(deviceId);
+        client.publish(topic, message);
+      }, 20000);
+    }
   }
-});
+);
 
 // Handle MQTT error event
 client.on('error', (error) => {
